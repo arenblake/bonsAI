@@ -23,8 +23,8 @@ It is designed to be a lightweight, drop-in replacement for the `llama.cpp` serv
 
 ### 1. Clone the Repository
 ```bash
-git clone --recursive https://github.com/YOUR_USERNAME/open-api-litert-lm.git
-cd open-api-litert-lm
+git clone --recursive https://github.com/arenblake/bonsAI.git
+cd bonsAI
 ```
 
 ### 2. Configure the Workspace

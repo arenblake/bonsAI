@@ -93,6 +93,17 @@ class ChatMessageDto : public oatpp::DTO {
 };
 
 /**
+ * @brief MCP Server configuration entry.
+ */
+class McpServerDto : public oatpp::DTO {
+    DTO_INIT(McpServerDto, DTO)
+
+    DTO_FIELD(String, name);
+    DTO_FIELD(String, url);
+    DTO_FIELD(Fields<String>, headers);
+};
+
+/**
  * @brief Request DTO for /v1/chat/completions.
  */
 class ChatCompletionRequestDto : public oatpp::DTO {
@@ -106,6 +117,7 @@ class ChatCompletionRequestDto : public oatpp::DTO {
     DTO_FIELD(Float32, temperature, "temperature") = 1.0f;
     DTO_FIELD(Float32, top_p, "top_p") = 1.0f;
     DTO_FIELD(Int32, max_tokens, "max_tokens");
+    DTO_FIELD(Vector<Object<McpServerDto>>, mcp_servers, "mcp_servers");
 };
 
 /**

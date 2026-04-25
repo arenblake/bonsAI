@@ -5,6 +5,8 @@
 #include "api/SseReadCallback.hpp"
 #include "inference/InferenceSession.hpp"
 #include "inference/ModelManager.hpp"
+#include "mcp/McpHttpClient.hpp"
+#include <unordered_map>
 
 #include "oatpp/web/server/api/ApiController.hpp"
 #include "oatpp/web/protocol/http/outgoing/StreamingBody.hpp"
@@ -137,6 +139,34 @@ public:
         std::string modelName = request->model ? request->model->c_str() : "bonsai-model";
         std::string id = "bonsai-" + std::to_string(std::chrono::system_clock::now().time_since_epoch().count());
 
+        std::unordered_map<std::string, std::shared_ptr<bonsai::mcp::McpHttpClient>> mcp_tool_map;
+        
+        if (request->mcp_servers && !request->mcp_servers->empty()) {
+            if (!request->tools) {
+                request->tools = oatpp::Vector<oatpp::Object<ToolDto>>::createShared();
+            }
+            for (const auto& mcpConfig : *request->mcp_servers) {
+                auto mcpClient = std::make_shared<bonsai::mcp::McpHttpClient>(mcpConfig, m_objectMapper);
+                auto initRes = mcpClient->initialize();
+                if (initRes) {
+                    auto toolsRes = mcpClient->listTools();
+                    if (toolsRes && toolsRes->tools) {
+                        for (const auto& mcpTool : *toolsRes->tools) {
+                            auto toolDto = ToolDto::createShared();
+                            toolDto->type = "function";
+                            toolDto->function = FunctionDto::createShared();
+                            toolDto->function->name = mcpTool->name;
+                            toolDto->function->description = mcpTool->description;
+                            toolDto->function->parameters = mcpTool->inputSchema;
+                            request->tools->push_back(toolDto);
+                            
+                            mcp_tool_map[mcpTool->name->std_str()] = mcpClient;
+                        }
+                    }
+                }
+            }
+        }
+
         // Prepare tools if present (keep OpenAI format as expected by Gemma-4 template)
         std::string toolsJsonStr = "";
         if (request->tools && !request->tools->empty()) {
@@ -162,9 +192,74 @@ public:
         }
 
         // Perform non-streaming inference
-        bonsai::inference::InferenceSession session;
-        session.init(toolsJsonStr);
-        nlohmann::json completion_json = session.predict(messages, settings);
+        nlohmann::json completion_json;
+        bool mcp_executed = false;
+        
+        do {
+            mcp_executed = false;
+            bonsai::inference::InferenceSession session;
+            session.init(toolsJsonStr);
+            completion_json = session.predict(messages, settings);
+
+            if (completion_json.contains("tool_calls") && completion_json["tool_calls"].is_array()) {
+                for (auto& tc : completion_json["tool_calls"]) {
+                    if (tc.contains("function")) {
+                        std::string tname = tc["function"].value("name", "");
+                        if (mcp_tool_map.count(tname)) {
+                            auto client = mcp_tool_map[tname];
+                            
+                            std::string targs_str;
+                            if (tc["function"]["arguments"].is_string()) {
+                                targs_str = tc["function"]["arguments"].get<std::string>();
+                            } else {
+                                targs_str = tc["function"]["arguments"].dump();
+                            }
+                            
+                            size_t pos;
+                            while ((pos = targs_str.find("<|\"|>")) != std::string::npos) {
+                                targs_str.erase(pos, 5);
+                            }
+                            
+                            oatpp::Any argsAny = nullptr;
+                            try {
+                                argsAny = m_objectMapper->readFromString<oatpp::Any>(oatpp::String(targs_str.c_str()));
+                            } catch (...) {
+                                argsAny = oatpp::Any(oatpp::String(targs_str.c_str()));
+                            }
+                            
+                            auto result = client->callTool(tname.c_str(), argsAny);
+                            std::string result_text = "Error executing tool";
+                            if (result && result->content && result->content->size() > 0) {
+                                result_text = result->content[0]->text->std_str();
+                            }
+
+                            bonsai::inference::Message assistant_msg;
+                            assistant_msg.role = "assistant";
+                            assistant_msg.tool_calls = nlohmann::json::array({tc});
+                            messages.push_back(assistant_msg);
+
+                            bonsai::inference::Message tool_msg;
+                            tool_msg.role = "tool";
+                            tool_msg.content = result_text;
+                            
+                            // Generate an ID if it's missing so the LLM knows which tool call it is responding to
+                            std::string tc_id = tc.value("id", "");
+                            if (tc_id.empty()) {
+                                tc_id = "call_" + std::to_string(std::chrono::system_clock::now().time_since_epoch().count());
+                                tc["id"] = tc_id;
+                                assistant_msg.tool_calls = nlohmann::json::array({tc}); // update the appended message
+                                messages.back() = assistant_msg; 
+                            }
+                            tool_msg.tool_call_id = tc_id;
+                            messages.push_back(tool_msg);
+
+                            mcp_executed = true;
+                            break; 
+                        }
+                    }
+                }
+            }
+        } while (mcp_executed);
 
         // Build response DTO
         auto response = ChatCompletionResponseDto::createShared();

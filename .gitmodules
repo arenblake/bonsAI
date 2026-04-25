@@ -1,0 +1,4 @@
+[submodule "LiteRT-LM"]
+	path = LiteRT-LM
+	url = https://github.com/arenblake/LiteRT-LM.git
+	branch = bonsai-engine

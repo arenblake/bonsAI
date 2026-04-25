@@ -1,6 +1,10 @@
 cmake_minimum_required(VERSION 3.25)
 project(BonsAI VERSION 0.1.0 LANGUAGES CXX)
 
+# NOTE: CMake is deprecated for production builds. 
+# Use the monolithic Bazel build in LiteRT-LM/bonsai/ instead.
+# This file is kept for IDE intellisense only.
+
 if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Release)
 endif()

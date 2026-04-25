@@ -2,6 +2,7 @@
 build/
 bin/
 lib/
+bonsai
 
 # IDEs and Editors
 .vscode/
@@ -14,19 +15,30 @@ lib/
 LiteRT-LM/bazel-*
 LiteRT-LM/external/
 LiteRT-LM/build/
+LiteRT-LM/bonsai/src
+LiteRT-LM/bonsai/include
+LiteRT-LM/bonsai/oatpp
+LiteRT-LM/oatpp
+
+# External Headers (Copied/Symlinked during build)
+include/oatpp/
+include/oatpp-test/
 
 # Python Virtual Environment
 .venv/
 __pycache__/
 *.py[cod]
+.pytest_cache/
 
 # Model Files (large binaries)
 *.litertlm
 *.bin
 *.gguf
 
-# Model Caches
+# Model Caches & Temp files
+*.xnnpack_cache
 *.xnnpack_cache_*
+tests/assets/*.wav
 
 # Logs and profiling
 *.log

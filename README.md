@@ -2,38 +2,45 @@
 
 BonsAI is a high-performance, edge-optimized inference server that provides an OpenAI-compatible REST API for models running on the **LiteRT-LM** (Google AI Edge) backend.
 
+It is designed to be a lightweight, drop-in replacement for the `llama.cpp` server, specifically tailored for resource-constrained devices like Raspberry Pi, NVIDIA Jetson, and other edge hardware.
+
 ## 🚀 Features
 
 - **OpenAI Compatible**: Support for `/v1/chat/completions` and `/v1/models`.
 - **Streaming Support**: Real-time token streaming via Server-Sent Events (SSE).
 - **Edge Optimized**: Built with C++20 and LiteRT-LM for minimal overhead.
 - **Hardware Acceleration**: Seamlessly leverages CPU/GPU/NPU via LiteRT backends.
+- **Multimodal Support**: Interleaved Text, Image (Vision), and Audio input support.
+- **Zero-Dependency Binary**: Distribute as a single static executable.
 
 ## 🛠️ Setup
 
 ### Prerequisites
 
-- Ubuntu 24.04 (or similar Linux)
-- CMake 3.25+
-- Bazel (for building the LiteRT-LM shared library)
-- C++20 Compiler (GCC 13+ or Clang 18+)
+- **OS**: Ubuntu 24.04 (or similar Linux)
+- **Build Tools**: Bazel (7.0+), C++20 Compiler (GCC 13+ or Clang 18+)
+- **Libraries**: [Oat++](https://oatpp.io/) installed at `/usr/local`
 
-### 1. Build the Engine
-
-BonsAI uses a custom-built shared library of LiteRT-LM to ensure portability.
-
+### 1. Clone the Repository
 ```bash
-cd LiteRT-LM
-bazel build -c opt //c:libbonsai_engine.so
-cd ..
+git clone --recursive https://github.com/YOUR_USERNAME/open-api-litert-lm.git
+cd open-api-litert-lm
 ```
 
-### 2. Build the Server
-
+### 2. Configure the Workspace
+The configuration script sets up the necessary symlinks between the BonsAI source and the LiteRT-LM Bazel workspace.
 ```bash
-mkdir build && cd build
-cmake ..
-make -j$(nproc)
+chmod +x configure.sh
+./configure.sh
+```
+
+### 3. Build the Monolithic Binary
+BonsAI is compiled into a single self-contained binary using Bazel.
+```bash
+cd LiteRT-LM
+bazel build -c opt //bonsai:bonsai
+cd ..
+cp LiteRT-LM/bazel-bin/bonsai/bonsai .
 ```
 
 ## 🏃 Usage
@@ -41,14 +48,12 @@ make -j$(nproc)
 Start the server by pointing it to a `.litertlm` model file:
 
 ```bash
-export LD_LIBRARY_PATH=$PWD/LiteRT-LM/bazel-bin/c:$LD_LIBRARY_PATH
-./build/bonsai path/to/your_model.litertlm
+./bonsai path/to/your_model.litertlm
 ```
 
 The server will listen on `http://0.0.0.0:8080`.
 
 ### Example Request (cURL)
-
 ```bash
 curl http://localhost:8080/v1/chat/completions \
   -H "Content-Type: application/json" \
@@ -59,45 +64,25 @@ curl http://localhost:8080/v1/chat/completions \
   }'
 ```
 
-### Example Usage (Python Client)
-
-```python
-import openai
-
-client = openai.OpenAI(base_url="http://localhost:8080/v1", api_key="sk-none")
-
-response = client.chat.completions.create(
-    model="gemma-4-E2B-it",
-    messages=[{"role": "user", "content": "Tell me a story about a small tree."}],
-    stream=True
-)
-
-for chunk in response:
-    print(chunk.choices[0].delta.content or "", end="")
-```
-
 ## 🧪 Testing
 
 BonsAI uses `pytest` for automated validation.
 
 ### Prerequisites for Testing
-- `uv` (recommended)
+- `uv` (recommended for Python dependency management)
 - `ffmpeg` (required for multimodal audio tests)
 
 ### Running the Test Suite
-
-1. **Start the server** in one terminal:
+1. **Start the server** (Terminal 1):
    ```bash
-   export LD_LIBRARY_PATH=$PWD/LiteRT-LM/bazel-bin/c:$LD_LIBRARY_PATH
-   ./build/bonsai path/to/gemma-4-E2B-it.litertlm
+   ./bonsai path/to/gemma-4-E2B-it.litertlm
    ```
-
-2. **Run the tests** in another terminal:
+2. **Run tests** (Terminal 2):
    ```bash
-   # Install test dependencies
+   # Install dependencies
    uv pip install pytest pytest-asyncio openai httpx
 
-   # Run all tests
+   # Run the suite
    uv run pytest tests/
    ```
 
@@ -108,7 +93,9 @@ BonsAI uses `pytest` for automated validation.
 - [x] Multi-client thread-safe orchestration
 - [x] Advanced Tool/Function Calling
 - [x] Multimodal (Vision/Audio) input support
-- [ ] Static binary distribution
+- [x] Static binary distribution
+- [ ] Static binary distribution via Docker (for `manylinux` compatibility)
+- [ ] CUDA/OpenCL Backend support in binary releases
 
 ## 📄 License
 

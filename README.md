@@ -81,7 +81,7 @@ for chunk in response:
 - [x] OpenAI-standard Chat API
 - [x] SSE Streaming
 - [x] Multi-client thread-safe orchestration
-- [ ] Advanced Tool/Function Calling
+- [x] Advanced Tool/Function Calling
 - [ ] Multimodal (Vision/Audio) input support
 - [ ] Static binary distribution
 

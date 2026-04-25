@@ -30,6 +30,7 @@ set(SOURCES
     src/main.cpp
     src/inference/ModelManager.cpp
     src/inference/InferenceSession.cpp
+    src/mcp/McpHttpClient.cpp
 )
 
 add_executable(bonsai

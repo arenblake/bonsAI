@@ -5,8 +5,10 @@
 #include <vector>
 #include <functional>
 #include <memory>
+#include <mutex>
 
 #include "c/engine.h"
+#include "nlohmann/json.hpp"
 
 namespace bonsai {
 namespace inference {
@@ -17,12 +19,14 @@ namespace inference {
 struct Message {
     std::string role;
     std::string content;
+    std::string tool_call_id;
+    nlohmann::ordered_json tool_calls;
 };
 
 /**
  * @brief Bridge for streaming callbacks.
  */
-using TokenCallback = std::function<void(const std::string& token, bool is_done)>;
+using TokenCallback = std::function<void(const nlohmann::json& response, bool is_done)>;
 
 /**
  * @brief Sampler settings for the inference engine.
@@ -41,11 +45,19 @@ public:
     InferenceSession();
     ~InferenceSession();
 
-    std::string predict(const std::vector<Message>& messages, const SamplerSettings& settings = {});
+    /**
+     * @brief Initialize the session with optional tools.
+     * @param toolsJson JSON string defining tools (OpenAI format).
+     * @return bool True if successful.
+     */
+    bool init(const std::string& toolsJson = "");
+
+    nlohmann::json predict(const std::vector<Message>& messages, const SamplerSettings& settings = {});
     void predictAsync(const std::vector<Message>& messages, TokenCallback callback, const SamplerSettings& settings = {});
 
 private:
     LiteRtLmConversation* m_conversation = nullptr;
+    std::unique_lock<std::mutex> m_engineLock;
 };
 
 } // namespace inference

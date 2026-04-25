@@ -7,6 +7,48 @@
 #include OATPP_CODEGEN_BEGIN(DTO)
 
 /**
+ * @brief Function definition for Tool.
+ */
+class FunctionDto : public oatpp::DTO {
+    DTO_INIT(FunctionDto, DTO)
+
+    DTO_FIELD(String, name);
+    DTO_FIELD(String, description);
+    DTO_FIELD(Any, parameters);
+};
+
+/**
+ * @brief Tool definition.
+ */
+class ToolDto : public oatpp::DTO {
+    DTO_INIT(ToolDto, DTO)
+
+    DTO_FIELD(String, type) = "function";
+    DTO_FIELD(Object<FunctionDto>, function);
+};
+
+/**
+ * @brief Function call details.
+ */
+class ToolCallFunctionDto : public oatpp::DTO {
+    DTO_INIT(ToolCallFunctionDto, DTO)
+
+    DTO_FIELD(String, name);
+    DTO_FIELD(String, arguments);
+};
+
+/**
+ * @brief Tool call entry in message.
+ */
+class ToolCallDto : public oatpp::DTO {
+    DTO_INIT(ToolCallDto, DTO)
+
+    DTO_FIELD(String, id);
+    DTO_FIELD(String, type) = "function";
+    DTO_FIELD(Object<ToolCallFunctionDto>, function);
+};
+
+/**
  * @brief Message DTO for Chat Completion Request.
  */
 class ChatMessageDto : public oatpp::DTO {
@@ -14,6 +56,8 @@ class ChatMessageDto : public oatpp::DTO {
 
     DTO_FIELD(String, role);
     DTO_FIELD(String, content);
+    DTO_FIELD(Vector<Object<ToolCallDto>>, tool_calls, "tool_calls");
+    DTO_FIELD(String, tool_call_id, "tool_call_id");
 };
 
 /**
@@ -24,6 +68,8 @@ class ChatCompletionRequestDto : public oatpp::DTO {
 
     DTO_FIELD(String, model);
     DTO_FIELD(Vector<Object<ChatMessageDto>>, messages);
+    DTO_FIELD(Vector<Object<ToolDto>>, tools);
+    DTO_FIELD(Any, tool_choice, "tool_choice");
     DTO_FIELD(Boolean, stream, "stream") = false;
     DTO_FIELD(Float32, temperature, "temperature") = 1.0f;
     DTO_FIELD(Float32, top_p, "top_p") = 1.0f;

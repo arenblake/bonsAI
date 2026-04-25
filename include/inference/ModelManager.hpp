@@ -23,6 +23,8 @@ public:
 
     LiteRtLmEngine* getEngine() { return m_engine; }
 
+    std::mutex& getInferenceMutex() { return m_inferenceMutex; }
+
 private:
     ModelManager() = default;
     ~ModelManager();
@@ -33,6 +35,7 @@ private:
     std::string m_modelPath;
     bool m_initialized = false;
     mutable std::mutex m_mutex;
+    std::mutex m_inferenceMutex;
 
     LiteRtLmEngine* m_engine = nullptr;
 };

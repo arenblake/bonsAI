@@ -17,7 +17,13 @@ using namespace bonsai::inference;
 /**
  * @brief Main execution function for the BonsAI server.
  */
-void run(const std::string& model_path) {
+void run(const std::string& host, uint16_t port, const std::string& model_path) {
+    // 0. Register host/port components using the ServerConfig struct
+    auto serverConfig = std::make_shared<bonsai::ServerConfig>();
+    serverConfig->host = host;
+    serverConfig->port = port;
+    oatpp::Environment::Component<std::shared_ptr<bonsai::ServerConfig>> configComponent(serverConfig);
+
     // 1. Initialize Components
     bonsai::AppComponent components;
 
@@ -41,7 +47,7 @@ void run(const std::string& model_path) {
     // 5. Create server and run
     oatpp::network::Server server(connectionProvider, connectionHandler);
 
-    std::cout << "BonsAI Server is listening on port " << connectionProvider->getProperty("port").toString()->c_str() << "..." << std::endl;
+    std::cout << "BonsAI Server is listening on " << host << ":" << port << "..." << std::endl;
 
     server.run();
 }
@@ -49,16 +55,38 @@ void run(const std::string& model_path) {
 int main(int argc, char** argv) {
     oatpp::Environment::init();
 
-    if (argc < 2) {
-        std::cout << "Usage: " << argv[0] << " <path_to_model.litertlm>" << std::endl;
-        oatpp::Environment::destroy();
-        return 0;
+    std::string model_path;
+    std::string host = "127.0.0.1";
+    uint16_t port = 8080;
+
+    for (int i = 1; i < argc; ++i) {
+        std::string arg = argv[i];
+        if (arg == "--host" && i + 1 < argc) {
+            host = argv[++i];
+        } else if (arg == "--port" && i + 1 < argc) {
+            port = static_cast<uint16_t>(std::stoi(argv[++i]));
+        } else if (arg == "--help" || arg == "-h") {
+            std::cout << "Usage: " << argv[0] << " [options] <path_to_model.litertlm>\n"
+                      << "Options:\n"
+                      << "  --host <host>  Host address to bind to (default: 127.0.0.1)\n"
+                      << "  --port <port>  Port number to listen on (default: 8080)\n"
+                      << "  --help, -h     Show this help message\n";
+            oatpp::Environment::destroy();
+            return 0;
+        } else if (model_path.empty()) {
+            model_path = arg;
+        }
     }
 
-    std::string model_path = argv[1];
+    if (model_path.empty()) {
+        std::cerr << "Error: No model path provided.\n";
+        std::cout << "Usage: " << argv[0] << " [options] <path_to_model.litertlm>\n";
+        oatpp::Environment::destroy();
+        return 1;
+    }
 
     try {
-        run(model_path);
+        run(host, port, model_path);
     } catch (const std::exception& e) {
         std::cerr << "FATAL ERROR: " << e.what() << std::endl;
         oatpp::Environment::destroy();

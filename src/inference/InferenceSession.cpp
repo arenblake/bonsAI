@@ -54,20 +54,23 @@ bool InferenceSession::init(const std::string& toolsJson, const std::string& his
     }
 
     auto* engine = manager.getEngine();
-    const char* tools_ptr = toolsJson.empty() ? nullptr : toolsJson.c_str();
-    const char* history_ptr = historyJson.empty() ? nullptr : historyJson.c_str();
+    
+    // Use new C API with setters
+    LiteRtLmConversationConfig* config = litert_lm_conversation_config_create();
+    if (!config) return false;
 
     if (!toolsJson.empty()) {
         std::cout << "[InferenceSession] Initializing with tools." << std::endl;
+        litert_lm_conversation_config_set_tools(config, toolsJson.c_str());
+        // Note: Constrained decoding is disabled because of a segfault in the LiteRT-LM FST engine
+        // when using Gemma-4 tool calling schemas.
+        litert_lm_conversation_config_set_enable_constrained_decoding(config, false);
     }
+    
     if (!historyJson.empty()) {
         std::cout << "[InferenceSession] Initializing with history." << std::endl;
+        litert_lm_conversation_config_set_messages(config, historyJson.c_str());
     }
-
-    LiteRtLmConversationConfig* config = litert_lm_conversation_config_create(
-        engine, nullptr, nullptr, tools_ptr, history_ptr, false);
-    
-    if (!config) return false;
 
     m_conversation = litert_lm_conversation_create(engine, config);
     litert_lm_conversation_config_delete(config);
@@ -84,13 +87,7 @@ nlohmann::json InferenceSession::predict(const std::vector<Message>& messages, c
         history.push_back(messageToJson(messages[i]));
     }
 
-    // Tools should be passed during init. 
-    // For now we assume init was called with tools if needed, 
-    // or we might need to change the API to pass tools here.
-    // Actually, ChatController calls init(toolsJson, historyJson).
-    
     if (!m_conversation) {
-        // This shouldn't normally happen as ChatController calls init
         if (!init("", history.dump())) return json{{"error", "Failed to init"}};
     }
 
@@ -161,6 +158,7 @@ void InferenceSession::predictAsync(const std::vector<Message>& messages, TokenC
 
             if (is_final) {
                 (*cb)(json::object(), true);
+                // Defer deletion to a separate thread to avoid deadlock with engine thread
                 std::thread([cb]() { 
                     std::this_thread::sleep_for(std::chrono::milliseconds(10));
                     delete cb; 

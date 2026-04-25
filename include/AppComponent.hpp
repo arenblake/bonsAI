@@ -10,6 +10,14 @@
 namespace bonsai {
 
 /**
+ * @brief Configuration for the server.
+ */
+struct ServerConfig {
+    std::string host;
+    v_uint16 port;
+};
+
+/**
  * @brief Manages Oat++ components for the application.
  */
 class AppComponent {
@@ -18,7 +26,8 @@ public:
      * @brief Create ConnectionProvider component.
      */
     OATPP_CREATE_COMPONENT(std::shared_ptr<oatpp::network::ServerConnectionProvider>, serverConnectionProvider)([] {
-        return oatpp::network::tcp::server::ConnectionProvider::createShared({"0.0.0.0", 8080, oatpp::network::Address::IP_4});
+        OATPP_COMPONENT(std::shared_ptr<ServerConfig>, config);
+        return oatpp::network::tcp::server::ConnectionProvider::createShared({config->host.c_str(), config->port, oatpp::network::Address::IP_4});
     }());
 
     /**

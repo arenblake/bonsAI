@@ -73,9 +73,9 @@ public:
                         if (text_val.is_string()) text += text_val.get<std::string>();
                     }
                 }
-                choice->delta->content = text.c_str();
+                choice->delta->content = oatpp::String(text.c_str());
             } else if (response["content"].is_string()) {
-                choice->delta->content = response["content"].get<std::string>().c_str();
+                choice->delta->content = oatpp::String(response["content"].get<std::string>().c_str());
             }
         }
 

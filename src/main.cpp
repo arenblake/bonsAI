@@ -23,7 +23,8 @@ void run(const std::string& model_path) {
 
     // 2. Initialize Model Manager
     auto& manager = ModelManager::getInstance();
-    if (!manager.init(model_path)) {
+    // Defaulting to enabling vision/audio support if model has them
+    if (!manager.init(model_path, false, false, false)) {
         throw std::runtime_error("Failed to initialize engine.");
     }
 

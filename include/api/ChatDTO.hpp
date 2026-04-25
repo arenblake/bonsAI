@@ -49,13 +49,45 @@ class ToolCallDto : public oatpp::DTO {
 };
 
 /**
+ * @brief Image URL details.
+ */
+class ImageUrlDto : public oatpp::DTO {
+    DTO_INIT(ImageUrlDto, DTO)
+
+    DTO_FIELD(String, url);
+    DTO_FIELD(String, detail) = "auto";
+};
+
+/**
+ * @brief Input audio details.
+ */
+class InputAudioDto : public oatpp::DTO {
+    DTO_INIT(InputAudioDto, DTO)
+
+    DTO_FIELD(String, data);
+    DTO_FIELD(String, format);
+};
+
+/**
+ * @brief Content part for multimodal messages.
+ */
+class ChatContentDto : public oatpp::DTO {
+    DTO_INIT(ChatContentDto, DTO)
+
+    DTO_FIELD(String, type);
+    DTO_FIELD(String, text);
+    DTO_FIELD(Object<ImageUrlDto>, image_url, "image_url");
+    DTO_FIELD(Object<InputAudioDto>, input_audio, "input_audio");
+};
+
+/**
  * @brief Message DTO for Chat Completion Request.
  */
 class ChatMessageDto : public oatpp::DTO {
     DTO_INIT(ChatMessageDto, DTO)
 
     DTO_FIELD(String, role);
-    DTO_FIELD(String, content);
+    DTO_FIELD(Any, content);
     DTO_FIELD(Vector<Object<ToolCallDto>>, tool_calls, "tool_calls");
     DTO_FIELD(String, tool_call_id, "tool_call_id");
 };

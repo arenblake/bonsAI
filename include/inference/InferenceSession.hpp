@@ -18,7 +18,7 @@ namespace inference {
  */
 struct Message {
     std::string role;
-    std::string content;
+    nlohmann::ordered_json content;
     std::string tool_call_id;
     nlohmann::ordered_json tool_calls;
 };
@@ -46,11 +46,12 @@ public:
     ~InferenceSession();
 
     /**
-     * @brief Initialize the session with optional tools.
+     * @brief Initialize the session with optional tools and history.
      * @param toolsJson JSON string defining tools (OpenAI format).
+     * @param historyJson JSON array of previous messages.
      * @return bool True if successful.
      */
-    bool init(const std::string& toolsJson = "");
+    bool init(const std::string& toolsJson = "", const std::string& historyJson = "");
 
     nlohmann::json predict(const std::vector<Message>& messages, const SamplerSettings& settings = {});
     void predictAsync(const std::vector<Message>& messages, TokenCallback callback, const SamplerSettings& settings = {});

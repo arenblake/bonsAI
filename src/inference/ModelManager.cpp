@@ -15,7 +15,7 @@ ModelManager::~ModelManager() {
     }
 }
 
-bool ModelManager::init(const std::string& modelPath, bool useGpu) {
+bool ModelManager::init(const std::string& modelPath, bool useGpu, bool useVisionGpu, bool useAudioGpu) {
     std::lock_guard<std::mutex> lock(m_mutex);
     
     if (m_initialized) {
@@ -26,7 +26,8 @@ bool ModelManager::init(const std::string& modelPath, bool useGpu) {
 
     LiteRtLmEngineSettings* settings = litert_lm_engine_settings_create(modelPath.c_str(), 
                                                                        useGpu ? "GPU" : "CPU", 
-                                                                       nullptr, nullptr);
+                                                                       useVisionGpu ? "GPU" : "CPU", 
+                                                                       useAudioGpu ? "GPU" : "CPU");
     if (!settings) {
         std::cerr << "Failed to create engine settings." << std::endl;
         return false;

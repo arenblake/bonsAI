@@ -17,7 +17,7 @@ class ModelManager {
 public:
     static ModelManager& getInstance();
 
-    bool init(const std::string& modelPath, bool useGpu = false);
+    bool init(const std::string& modelPath, bool useGpu = false, bool useVisionGpu = false, bool useAudioGpu = false);
     bool isInitialized() const;
     std::string getModelName() const { return m_modelPath; }
 

@@ -11,6 +11,8 @@
 #include "oatpp/macro/codegen.hpp"
 #include "oatpp/macro/component.hpp"
 
+#include "absl/strings/escaping.h"
+
 #include <chrono>
 
 #include OATPP_CODEGEN_BEGIN(ApiController)
@@ -31,14 +33,42 @@ public:
     ENDPOINT("GET", "/v1/models", getModels) {
         auto response = ModelListDto::createShared();
         auto model = ModelDto::createShared();
-        model->id = bonsai::inference::ModelManager::getInstance().getModelName();
+        
+        std::string fullPath = bonsai::inference::ModelManager::getInstance().getModelName();
+        size_t lastSlash = fullPath.find_last_of("/\\");
+        model->id = (lastSlash == std::string::npos) ? fullPath.c_str() : fullPath.substr(lastSlash + 1).c_str();
+        
         response->data = { model };
         return createDtoResponse(Status::CODE_200, response);
+    }
+
+    std::shared_ptr<OutgoingResponse> createErrorResponse(const Status& status, const std::string& message) {
+        auto errorResponse = ErrorResponseDto::createShared();
+        errorResponse->error = ErrorDetailDto::createShared();
+        errorResponse->error->message = message.c_str();
+        errorResponse->error->type = "invalid_request_error";
+        errorResponse->error->code = std::to_string(status.code).c_str();
+        return createDtoResponse(status, errorResponse);
     }
 
     ENDPOINT("POST", "/v1/chat/completions", chatCompletions,
              BODY_DTO(Object<ChatCompletionRequestDto>, request)) {
         
+        // 1. Validation
+        if (!request->messages || request->messages->empty()) {
+            return createErrorResponse(Status::CODE_400, "Missing or empty 'messages' field.");
+        }
+
+        for (const auto& msgDto : *request->messages) {
+            if (!msgDto->role) {
+                return createErrorResponse(Status::CODE_400, "Message missing required 'role' field.");
+            }
+            std::string role = msgDto->role->c_str();
+            if (role != "user" && role != "assistant" && role != "system" && role != "tool" && role != "developer") {
+                return createErrorResponse(Status::CODE_400, "Invalid role: " + std::string(msgDto->role->c_str()));
+            }
+        }
+
         // Map common parameters
         bonsai::inference::SamplerSettings settings;
         if (request->temperature) settings.temperature = request->temperature;
@@ -51,7 +81,38 @@ public:
             for (const auto& msgDto : *request->messages) {
                 bonsai::inference::Message msg;
                 msg.role = msgDto->role ? msgDto->role->c_str() : "";
-                if (msgDto->content) msg.content = msgDto->content->c_str();
+                
+                // Handle content (String or Multimodal Array)
+                auto content_oatpp = m_objectMapper->writeToString(msgDto->content);
+                nlohmann::ordered_json content_json = nlohmann::ordered_json::parse(content_oatpp->c_str());
+                
+                if (content_json.is_string()) {
+                    msg.content = content_json.get<std::string>();
+                } else if (content_json.is_array()) {
+                    nlohmann::ordered_json multimodal_content = nlohmann::ordered_json::array();
+                    for (auto& part : content_json) {
+                        if (part.contains("type")) {
+                            std::string type = part["type"];
+                            if (type == "text" && part.contains("text")) {
+                                multimodal_content.push_back({{"type", "text"}, {"text", part["text"]}});
+                            } else if (type == "image_url" && part.contains("image_url")) {
+                                std::string url = part["image_url"]["url"];
+                                if (url.starts_with("data:image")) {
+                                    size_t comma = url.find(",");
+                                    if (comma != std::string::npos) {
+                                        multimodal_content.push_back({{"type", "image"}, {"blob", url.substr(comma + 1)}});
+                                    }
+                                } else {
+                                    multimodal_content.push_back({{"type", "image"}, {"path", url}});
+                                }
+                            } else if (type == "input_audio" && part.contains("input_audio")) {
+                                multimodal_content.push_back({{"type", "audio"}, {"blob", part["input_audio"]["data"]}});
+                            }
+                        }
+                    }
+                    msg.content = multimodal_content;
+                }
+
                 if (msgDto->tool_call_id) msg.tool_call_id = msgDto->tool_call_id->c_str();
                 
                 if (msgDto->tool_calls && !msgDto->tool_calls->empty()) {
@@ -126,9 +187,9 @@ public:
                         if (text_val.is_string()) text += text_val.get<std::string>();
                     }
                 }
-                choice->message->content = text.c_str();
+                choice->message->content = oatpp::String(text.c_str());
             } else if (completion_json["content"].is_string()) {
-                choice->message->content = completion_json["content"].get<std::string>().c_str();
+                choice->message->content = oatpp::String(completion_json["content"].get<std::string>().c_str());
             }
         }
 

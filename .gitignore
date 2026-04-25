@@ -1,0 +1,37 @@
+# Build directories
+build/
+bin/
+lib/
+
+# IDEs and Editors
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# LiteRT-LM Build Artifacts & Submodule
+LiteRT-LM/bazel-*
+LiteRT-LM/external/
+LiteRT-LM/build/
+
+# Python Virtual Environment
+.venv/
+__pycache__/
+*.py[cod]
+
+# Model Files (large binaries)
+*.litertlm
+*.bin
+*.gguf
+
+# Model Caches
+*.xnnpack_cache_*
+
+# Logs and profiling
+*.log
+*.profraw
+
+# OS specific
+.DS_Store
+Thumbs.db

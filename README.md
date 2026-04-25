@@ -76,13 +76,38 @@ for chunk in response:
     print(chunk.choices[0].delta.content or "", end="")
 ```
 
+## 🧪 Testing
+
+BonsAI uses `pytest` for automated validation.
+
+### Prerequisites for Testing
+- `uv` (recommended)
+- `ffmpeg` (required for multimodal audio tests)
+
+### Running the Test Suite
+
+1. **Start the server** in one terminal:
+   ```bash
+   export LD_LIBRARY_PATH=$PWD/LiteRT-LM/bazel-bin/c:$LD_LIBRARY_PATH
+   ./build/bonsai path/to/gemma-4-E2B-it.litertlm
+   ```
+
+2. **Run the tests** in another terminal:
+   ```bash
+   # Install test dependencies
+   uv pip install pytest pytest-asyncio openai httpx
+
+   # Run all tests
+   uv run pytest tests/
+   ```
+
 ## 📋 Roadmap
 
 - [x] OpenAI-standard Chat API
 - [x] SSE Streaming
 - [x] Multi-client thread-safe orchestration
 - [x] Advanced Tool/Function Calling
-- [ ] Multimodal (Vision/Audio) input support
+- [x] Multimodal (Vision/Audio) input support
 - [ ] Static binary distribution
 
 ## 📄 License

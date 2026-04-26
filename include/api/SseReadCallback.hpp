@@ -31,11 +31,18 @@ private:
     std::string m_buffer;
     size_t m_bufferPos = 0;
 
+    // Keep session alive for the duration of the callback
+    std::shared_ptr<void> m_session;
+
 public:
     SseReadCallback(const std::shared_ptr<oatpp::data::mapping::ObjectMapper>& mapper,
                    const std::string& chunkId,
-                   const std::string& modelName)
-        : m_mapper(std::static_pointer_cast<oatpp::json::ObjectMapper>(mapper)), m_chunkId(chunkId), m_modelName(modelName) {
+                   const std::string& modelName,
+                   const std::shared_ptr<void>& session = nullptr)
+        : m_mapper(std::static_pointer_cast<oatpp::json::ObjectMapper>(mapper)), 
+          m_chunkId(chunkId), 
+          m_modelName(modelName),
+          m_session(session) {
         m_created = std::chrono::system_clock::now().time_since_epoch().count() / 1000000000;
     }
 

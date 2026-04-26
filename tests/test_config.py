@@ -4,9 +4,10 @@ import subprocess
 import time
 import os
 
-def test_custom_port(model_name):
+def test_custom_port():
     """Verify that the server can bind to and respond on a custom port."""
     custom_port = 9091
+    model_name = "/home/aren/models/gemma-4-E2B-it.litertlm"
     
     # 1. Start the server on a custom port
     cmd = [
@@ -21,7 +22,7 @@ def test_custom_port(model_name):
     
     try:
         # 2. Wait for server to initialize
-        time.sleep(30)
+        time.sleep(10)
         
         # 3. Try to list models on the custom port
         with httpx.Client(base_url=f"http://127.0.0.1:{custom_port}/v1") as client:

@@ -26,7 +26,7 @@ namespace mcp {
 
 class McpHttpClient {
 private:
-    std::shared_ptr<McpApiClient> m_client;
+    std::shared_ptr<oatpp::web::client::HttpRequestExecutor> m_requestExecutor;
     std::shared_ptr<oatpp::json::ObjectMapper> m_objectMapper;
     std::string m_path;
     std::string m_authHeader;

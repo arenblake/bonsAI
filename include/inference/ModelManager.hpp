@@ -4,6 +4,8 @@
 #include <memory>
 #include <string>
 #include <mutex>
+#include <atomic>
+#include <condition_variable>
 
 #include "c/engine.h"
 
@@ -23,10 +25,19 @@ public:
 
     LiteRtLmEngine* getEngine() { return m_engine; }
 
-    std::mutex& getInferenceMutex() { return m_inferenceMutex; }
+    /**
+     * @brief Acquire the inference lock. Blocks if another inference is in progress.
+     * This is thread-agnostic and can be released from a different thread.
+     */
+    void acquireInferenceLock();
+
+    /**
+     * @brief Release the inference lock.
+     */
+    void releaseInferenceLock();
 
 private:
-    ModelManager() = default;
+    ModelManager() : m_isGenerating(false) {}
     ~ModelManager();
 
     ModelManager(const ModelManager&) = delete;
@@ -35,7 +46,10 @@ private:
     std::string m_modelPath;
     bool m_initialized = false;
     mutable std::mutex m_mutex;
+
+    bool m_isGenerating;
     std::mutex m_inferenceMutex;
+    std::condition_variable m_inferenceCv;
 
     LiteRtLmEngine* m_engine = nullptr;
 };

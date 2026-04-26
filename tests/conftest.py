@@ -6,13 +6,13 @@ import httpx
 @pytest.fixture
 def client():
     return openai.OpenAI(
-        base_url="http://localhost:8080/v1",
+        base_url="http://127.0.0.1:8080/v1",
         api_key="sk-no-key-required"
     )
 
 @pytest.fixture
 def raw_client():
-    return httpx.Client(base_url="http://localhost:8080/v1")
+    return httpx.Client(base_url="http://127.0.0.1:8080/v1")
 
 @pytest.fixture
 def model_name():

@@ -73,7 +73,13 @@ public:
 
         // Map common parameters
         bonsai::inference::SamplerSettings settings;
-        if (request->temperature) settings.temperature = request->temperature;
+        if (request->temperature) {
+            float temp = *request->temperature;
+            if (temp < 0.0 || temp > 2.0) {
+                return createErrorResponse(Status::CODE_400, "Invalid temperature. Expected [0, 2].");
+            }
+            settings.temperature = temp;
+        }
         if (request->top_p) settings.top_p = request->top_p;
         if (request->max_tokens) settings.max_tokens = request->max_tokens;
 
@@ -84,50 +90,79 @@ public:
                 bonsai::inference::Message msg;
                 msg.role = msgDto->role ? msgDto->role->c_str() : "";
                 
-                // Handle content (String or Multimodal Array)
-                auto content_oatpp = m_objectMapper->writeToString(msgDto->content);
-                nlohmann::ordered_json content_json = nlohmann::ordered_json::parse(content_oatpp->c_str());
-                
-                if (content_json.is_string()) {
-                    msg.content = content_json.get<std::string>();
-                } else if (content_json.is_array()) {
-                    nlohmann::ordered_json multimodal_content = nlohmann::ordered_json::array();
-                    for (auto& part : content_json) {
-                        if (part.contains("type")) {
-                            std::string type = part["type"];
-                            if (type == "text" && part.contains("text")) {
-                                multimodal_content.push_back({{"type", "text"}, {"text", part["text"]}});
-                            } else if (type == "image_url" && part.contains("image_url")) {
-                                std::string url = part["image_url"]["url"];
-                                if (url.starts_with("data:image")) {
-                                    size_t comma = url.find(",");
-                                    if (comma != std::string::npos) {
-                                        multimodal_content.push_back({{"type", "image"}, {"blob", url.substr(comma + 1)}});
+                if (std::string(msg.role) == "tool") {
+                    // Gemma-4 IT template expects tool content to be a sequence of {name, response}
+                    nlohmann::ordered_json tool_content = nlohmann::ordered_json::array();
+                    nlohmann::ordered_json item;
+                    item["name"] = msgDto->tool_call_id ? msgDto->tool_call_id->c_str() : "unknown";
+                    
+                    if (msgDto->content) {
+                        auto content_oatpp = m_objectMapper->writeToString(msgDto->content);
+                        nlohmann::ordered_json content_json = nlohmann::ordered_json::parse(content_oatpp->c_str(), nullptr, false);
+                        if (content_json.is_discarded() || content_json.is_string()) {
+                            item["response"] = content_json.is_string() ? content_json.get<std::string>() : content_oatpp->c_str();
+                        } else {
+                            item["response"] = content_json;
+                        }
+                    } else {
+                        item["response"] = "";
+                    }
+                    tool_content.push_back(item);
+                    msg.content = tool_content;
+                } else if (msgDto->content) {
+                    // Handle content (String or Multimodal Array)
+                    auto content_oatpp = m_objectMapper->writeToString(msgDto->content);
+                    nlohmann::ordered_json content_json = nlohmann::ordered_json::parse(content_oatpp->c_str(), nullptr, false);
+                    
+                    if (content_json.is_string()) {
+                        msg.content = content_json.get<std::string>();
+                    } else if (content_json.is_array()) {
+                        nlohmann::ordered_json multimodal_content = nlohmann::ordered_json::array();
+                        for (auto& part : content_json) {
+                            if (part.contains("type")) {
+                                std::string type = part["type"];
+                                if (type == "text" && part.contains("text")) {
+                                    multimodal_content.push_back({{"type", "text"}, {"text", part["text"]}});
+                                } else if (type == "image_url" && part.contains("image_url")) {
+                                    std::string url = part["image_url"]["url"];
+                                    if (url.starts_with("data:image")) {
+                                        size_t comma = url.find(",");
+                                        if (comma != std::string::npos) {
+                                            multimodal_content.push_back({{"type", "image"}, {"blob", url.substr(comma + 1)}});
+                                        }
+                                    } else {
+                                        multimodal_content.push_back({{"type", "image"}, {"path", url}});
                                     }
-                                } else {
-                                    multimodal_content.push_back({{"type", "image"}, {"path", url}});
+                                } else if (type == "input_audio" && part.contains("input_audio")) {
+                                    multimodal_content.push_back({{"type", "audio"}, {"blob", part["input_audio"]["data"]}});
                                 }
-                            } else if (type == "input_audio" && part.contains("input_audio")) {
-                                multimodal_content.push_back({{"type", "audio"}, {"blob", part["input_audio"]["data"]}});
                             }
                         }
+                        msg.content = multimodal_content;
                     }
-                    msg.content = multimodal_content;
                 }
 
                 if (msgDto->tool_call_id) msg.tool_call_id = msgDto->tool_call_id->c_str();
                 
                 if (msgDto->tool_calls && !msgDto->tool_calls->empty()) {
-                    nlohmann::json tcs = nlohmann::json::array();
+                    nlohmann::ordered_json tcs = nlohmann::ordered_json::array();
                     for (const auto& tcDto : *msgDto->tool_calls) {
-                        nlohmann::json tc = {
-                            {"id", tcDto->id ? tcDto->id->c_str() : ""},
-                            {"type", tcDto->type ? tcDto->type->c_str() : "function"},
-                            {"function", {
-                                {"name", (tcDto->function && tcDto->function->name) ? tcDto->function->name->c_str() : ""},
-                                {"arguments", (tcDto->function && tcDto->function->arguments) ? tcDto->function->arguments->c_str() : "{}"}
-                            }}
-                        };
+                        nlohmann::ordered_json tc;
+                        tc["id"] = tcDto->id ? tcDto->id->c_str() : "";
+                        tc["type"] = tcDto->type ? tcDto->type->c_str() : "function";
+                        tc["function"]["name"] = (tcDto->function && tcDto->function->name) ? tcDto->function->name->c_str() : "";
+                        
+                        // IMPORTANT: Gemma-4 template expects arguments to be a JSON object
+                        if (tcDto->function && tcDto->function->arguments) {
+                            auto args_json = nlohmann::ordered_json::parse(tcDto->function->arguments->c_str(), nullptr, false);
+                            if (args_json.is_discarded()) {
+                                tc["function"]["arguments"] = nlohmann::ordered_json::object();
+                            } else {
+                                tc["function"]["arguments"] = args_json;
+                            }
+                        } else {
+                            tc["function"]["arguments"] = nlohmann::ordered_json::object();
+                        }
                         tcs.push_back(tc);
                     }
                     msg.tool_calls = tcs;
@@ -160,7 +195,7 @@ public:
                             toolDto->function->parameters = mcpTool->inputSchema;
                             request->tools->push_back(toolDto);
                             
-                            mcp_tool_map[mcpTool->name->std_str()] = mcpClient;
+                            mcp_tool_map[mcpTool->name->c_str()] = mcpClient;
                         }
                     }
                 }
@@ -175,13 +210,12 @@ public:
         }
 
         if (request->stream) {
-            auto sseCallback = std::make_shared<bonsai::api::SseReadCallback>(m_objectMapper, id, modelName);
-            
             auto session = std::make_shared<bonsai::inference::InferenceSession>();
-            session->init(toolsJsonStr);
-            session->predictAsync(messages, [sseCallback, session](const nlohmann::json& response, bool is_done) {
+            auto sseCallback = std::make_shared<bonsai::api::SseReadCallback>(m_objectMapper, id, modelName, session);
+            
+            session->predictAsync(messages, [sseCallback](const nlohmann::json& response, bool is_done) {
                 sseCallback->pushToken(response, is_done);
-            }, settings);
+            }, settings, toolsJsonStr);
 
             auto body = std::make_shared<oatpp::web::protocol::http::outgoing::StreamingBody>(sseCallback);
             auto response = oatpp::web::protocol::http::outgoing::Response::createShared(Status::CODE_200, body);
@@ -195,11 +229,10 @@ public:
         nlohmann::json completion_json;
         bool mcp_executed = false;
         
+        bonsai::inference::InferenceSession session;
         do {
             mcp_executed = false;
-            bonsai::inference::InferenceSession session;
-            session.init(toolsJsonStr);
-            completion_json = session.predict(messages, settings);
+            completion_json = session.predict(messages, settings, toolsJsonStr);
 
             if (completion_json.contains("tool_calls") && completion_json["tool_calls"].is_array()) {
                 for (auto& tc : completion_json["tool_calls"]) {
@@ -208,46 +241,57 @@ public:
                         if (mcp_tool_map.count(tname)) {
                             auto client = mcp_tool_map[tname];
                             
-                            std::string targs_str;
+                            nlohmann::ordered_json targs_obj;
                             if (tc["function"]["arguments"].is_string()) {
-                                targs_str = tc["function"]["arguments"].get<std::string>();
+                                std::string targs_str = tc["function"]["arguments"].get<std::string>();
+                                size_t pos;
+                                while ((pos = targs_str.find("<|\"|>")) != std::string::npos) {
+                                    targs_str.erase(pos, 5);
+                                }
+                                targs_obj = nlohmann::ordered_json::parse(targs_str, nullptr, false);
                             } else {
-                                targs_str = tc["function"]["arguments"].dump();
-                            }
-                            
-                            size_t pos;
-                            while ((pos = targs_str.find("<|\"|>")) != std::string::npos) {
-                                targs_str.erase(pos, 5);
+                                targs_obj = tc["function"]["arguments"];
                             }
                             
                             oatpp::Any argsAny = nullptr;
                             try {
-                                argsAny = m_objectMapper->readFromString<oatpp::Any>(oatpp::String(targs_str.c_str()));
+                                argsAny = m_objectMapper->readFromString<oatpp::Any>(oatpp::String(targs_obj.dump().c_str()));
                             } catch (...) {
-                                argsAny = oatpp::Any(oatpp::String(targs_str.c_str()));
+                                argsAny = oatpp::Any(oatpp::String(targs_obj.dump().c_str()));
                             }
                             
                             auto result = client->callTool(tname.c_str(), argsAny);
                             std::string result_text = "Error executing tool";
                             if (result && result->content && result->content->size() > 0) {
-                                result_text = result->content[0]->text->std_str();
+                                result_text = result->content[0]->text->c_str();
                             }
 
                             bonsai::inference::Message assistant_msg;
                             assistant_msg.role = "assistant";
-                            assistant_msg.tool_calls = nlohmann::json::array({tc});
+                            assistant_msg.tool_calls = nlohmann::ordered_json::array({tc});
+                            // Fix tool calls arguments to be an object for next turn
+                            assistant_msg.tool_calls[0]["function"]["arguments"] = targs_obj;
                             messages.push_back(assistant_msg);
 
                             bonsai::inference::Message tool_msg;
                             tool_msg.role = "tool";
-                            tool_msg.content = result_text;
                             
-                            // Generate an ID if it's missing so the LLM knows which tool call it is responding to
+                            // Gemma-4 IT format
+                            nlohmann::ordered_json tool_content = nlohmann::ordered_json::array();
+                            nlohmann::ordered_json item;
+                            item["name"] = tname;
+                            auto result_json = nlohmann::ordered_json::parse(result_text, nullptr, false);
+                            if (result_json.is_discarded()) item["response"] = result_text;
+                            else item["response"] = result_json;
+                            tool_content.push_back(item);
+                            tool_msg.content = tool_content;
+                            
                             std::string tc_id = tc.value("id", "");
                             if (tc_id.empty()) {
                                 tc_id = "call_" + std::to_string(std::chrono::system_clock::now().time_since_epoch().count());
                                 tc["id"] = tc_id;
-                                assistant_msg.tool_calls = nlohmann::json::array({tc}); // update the appended message
+                                assistant_msg.tool_calls = nlohmann::ordered_json::array({tc});
+                                assistant_msg.tool_calls[0]["function"]["arguments"] = targs_obj;
                                 messages.back() = assistant_msg; 
                             }
                             tool_msg.tool_call_id = tc_id;
@@ -293,8 +337,7 @@ public:
             choice->message->tool_calls = oatpp::Vector<oatpp::Object<ToolCallDto>>::createShared();
             for (const auto& tc : completion_json["tool_calls"]) {
                 auto tcDto = ToolCallDto::createShared();
-                // Generate a random ID if missing
-                tcDto->id = "call_" + std::to_string(std::chrono::system_clock::now().time_since_epoch().count());
+                tcDto->id = tc.value("id", ("call_" + std::to_string(std::chrono::system_clock::now().time_since_epoch().count())).c_str()).c_str();
                 tcDto->type = "function";
                 tcDto->function = ToolCallFunctionDto::createShared();
                 if (tc.contains("function")) {
@@ -309,7 +352,6 @@ public:
                         args_str = args.dump();
                     }
                     
-                    // Strip Gemma-4 specific escaping tokens if they leaked into the string
                     size_t pos;
                     while ((pos = args_str.find("<|\"|>")) != std::string::npos) {
                         args_str.erase(pos, 5);

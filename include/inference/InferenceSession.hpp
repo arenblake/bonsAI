@@ -40,25 +40,31 @@ struct SamplerSettings {
 /**
  * @brief Wraps a LiteRT-LM Conversation session.
  */
-class InferenceSession {
+class InferenceSession : public std::enable_shared_from_this<InferenceSession> {
 public:
     InferenceSession();
     ~InferenceSession();
+
+    InferenceSession(const InferenceSession&) = delete;
+    InferenceSession& operator=(const InferenceSession&) = delete;
 
     /**
      * @brief Initialize the session with optional tools and history.
      * @param toolsJson JSON string defining tools (OpenAI format).
      * @param historyJson JSON array of previous messages.
+     * @param settings Sampler settings.
      * @return bool True if successful.
      */
-    bool init(const std::string& toolsJson = "", const std::string& historyJson = "");
+    bool init(const std::string& toolsJson = "", const std::string& historyJson = "", const SamplerSettings& settings = {});
 
-    nlohmann::json predict(const std::vector<Message>& messages, const SamplerSettings& settings = {});
-    void predictAsync(const std::vector<Message>& messages, TokenCallback callback, const SamplerSettings& settings = {});
+    nlohmann::json predict(const std::vector<Message>& messages, const SamplerSettings& settings = {}, const std::string& toolsJson = "");
+    void predictAsync(const std::vector<Message>& messages, TokenCallback callback, const SamplerSettings& settings = {}, const std::string& toolsJson = "");
 
 private:
     LiteRtLmConversation* m_conversation = nullptr;
-    std::unique_lock<std::mutex> m_engineLock;
+    std::string m_toolsJson;
+    bool m_hasLock = false;
+    size_t m_lastMessageIndex = 0;
 };
 
 } // namespace inference

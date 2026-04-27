@@ -20,7 +20,9 @@ bazel build -c opt --define=LITERT_LM_FST_CONSTRAINTS_DISABLED=1 //bonsai:bonsai
 cd ..
 
 # 3. Copy and rename
-cp LiteRT-LM/bazel-bin/bonsai/bonsai ./${OUTPUT_NAME}
+sudo cp LiteRT-LM/bazel-bin/bonsai/bonsai ./${OUTPUT_NAME}
+sudo chown $(id -u):$(id -g) ./${OUTPUT_NAME}
+chmod +w ./${OUTPUT_NAME}
 strip ${OUTPUT_NAME}
 
 printf "Successfully built ${OUTPUT_NAME}\n"

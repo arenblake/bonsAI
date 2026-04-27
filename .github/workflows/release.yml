@@ -25,10 +25,9 @@ jobs:
 
       - name: Install Oat++
         run: |
-          VERSION="1.4.0"
-          curl -L https://github.com/oatpp/oatpp/archive/refs/tags/${VERSION}.tar.gz -o oatpp.tar.gz
+          curl -L https://github.com/oatpp/oatpp/archive/refs/heads/master.tar.gz -o oatpp.tar.gz
           tar -xzf oatpp.tar.gz
-          cd oatpp-${VERSION}
+          cd oatpp-master
           mkdir build && cd build
           cmake -DCMAKE_BUILD_TYPE=Release ..
           make -j$(nproc)

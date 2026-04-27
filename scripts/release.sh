@@ -5,9 +5,11 @@
 
 set -e
 
+# Version is still used for internal metadata or logging
 VERSION=$(grep "project(BonsAI VERSION" CMakeLists.txt | cut -d ' ' -f 3 | tr -d ')')
-PLATFORM=$(uname -s | tr '[:upper:]' '[:lower:]')_$(uname -m)
-OUTPUT_NAME="bonsai-${VERSION}-${PLATFORM}"
+# Fixed name for easier one-liner installation
+PLATFORM="linux_$(uname -m)"
+OUTPUT_NAME="bonsai-${PLATFORM}"
 
 printf "Building BonsAI version ${VERSION} for ${PLATFORM}...\n"
 
@@ -20,6 +22,7 @@ bazel build -c opt --define=LITERT_LM_FST_CONSTRAINTS_DISABLED=1 //bonsai:bonsai
 cd ..
 
 # 3. Copy and rename
+# Note: sudo is used because Bazel outputs are often read-only/owned by root in some environments
 sudo cp LiteRT-LM/bazel-bin/bonsai/bonsai ./${OUTPUT_NAME}
 sudo chown $(id -u):$(id -g) ./${OUTPUT_NAME}
 chmod +w ./${OUTPUT_NAME}

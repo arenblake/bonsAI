@@ -40,7 +40,7 @@ BonsAI is compiled into a single self-contained binary using Bazel.
 cd LiteRT-LM
 bazel build -c opt //bonsai:bonsai
 cd ..
-cp LiteRT-LM/bazel-bin/bonsai/bonsai .
+sudo cp LiteRT-LM/bazel-bin/bonsai/bonsai .
 ```
 
 ## 🏃 Usage
@@ -86,6 +86,24 @@ BonsAI uses `pytest` for automated validation.
    uv run pytest tests/
    ```
 
+## 📦 Distribution
+
+### System-wide Installation (Linux)
+
+You can install the latest version of `bonsai` system-wide using the following command:
+
+```bash
+curl -LsSf https://raw.githubusercontent.com/arenblake/bonsAI/main/scripts/install.sh | bash
+```
+
+Alternatively, if you have the repository cloned:
+
+```bash
+./scripts/install.sh
+```
+
+Once installed, you can run `bonsai` from any directory.
+
 ## 📋 Roadmap
 
 - [x] OpenAI-standard Chat API
@@ -94,6 +112,8 @@ BonsAI uses `pytest` for automated validation.
 - [x] Advanced Tool/Function Calling
 - [x] Multimodal (Vision/Audio) input support
 - [x] Static binary distribution
+- [x] System-wide installation script
+- [x] Automated GitHub Releases
 - [ ] Static binary distribution via Docker (for `manylinux` compatibility)
 - [ ] CUDA/OpenCL Backend support in binary releases
 

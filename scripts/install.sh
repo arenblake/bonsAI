@@ -30,23 +30,29 @@ fi
 
 # If not in repo, try to download from GitHub
 GITHUB_REPO="arenblake/bonsAI"
-PLATFORM="linux_x86_64" # Default for now
+PLATFORM="linux_x86_64"
 
 printf "Fetching latest release from GitHub...\n"
-LATEST_RELEASE=$(curl -s https://api.github.com/repos/${GITHUB_REPO}/releases/latest | grep "tag_name" | cut -d '"' -f 4)
+# Fetch tag_name using a more robust regex
+LATEST_RELEASE=$(curl -s https://api.github.com/repos/${GITHUB_REPO}/releases/latest | grep '"tag_name":' | sed -E 's/.*"tag_name": "([^"]+)".*/\1/')
 
 if [ -z "${LATEST_RELEASE}" ]; then
-  printf "${RED}No releases found on GitHub.${NC}\n"
-  printf "Please build BonsAI first using './configure.sh' and the Bazel build command.\n"
+  printf "${RED}Error: Could not find any releases on GitHub.${NC}\n"
+  printf "Please ensure the repository '${GITHUB_REPO}' has at least one published release.\n"
   exit 1
 fi
 
 VERSION=$(echo ${LATEST_RELEASE} | sed 's/^v//')
 BINARY_URL="https://github.com/${GITHUB_REPO}/releases/download/${LATEST_RELEASE}/bonsai-${VERSION}-${PLATFORM}"
 
-printf "Downloading ${LATEST_RELEASE}...\n"
-curl -L "${BINARY_URL}" -o /usr/local/bin/bonsai
-chmod +x /usr/local/bin/bonsai
+printf "Found release ${LATEST_RELEASE}. Downloading from:\n${BINARY_URL}\n"
 
+if ! curl -fL "${BINARY_URL}" -o /usr/local/bin/bonsai; then
+  printf "${RED}Error: Failed to download binary.${NC}\n"
+  printf "The release might be in progress or the platform '${PLATFORM}' is not supported yet.\n"
+  exit 1
+fi
+
+chmod +x /usr/local/bin/bonsai
 printf "${GREEN}BonsAI ${LATEST_RELEASE} installed successfully to /usr/local/bin/bonsai${NC}\n"
 exit 0

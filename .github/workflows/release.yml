@@ -6,6 +6,9 @@ on:
       - 'v*'
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build-linux:
     runs-on: ubuntu-24.04
@@ -18,21 +21,16 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential cmake clang-18 llvm-18 ffmpeg
+          sudo apt-get install -y build-essential cmake clang-18 llvm-18 ffmpeg curl
 
       - name: Install Oat++
         run: |
-          git clone --depth 1 https://github.com/oatpp/oatpp.git
-          cd oatpp
+          VERSION="1.4.0"
+          curl -L https://github.com/oatpp/oatpp/archive/refs/tags/${VERSION}.tar.gz -o oatpp.tar.gz
+          tar -xzf oatpp.tar.gz
+          cd oatpp-${VERSION}
           mkdir build && cd build
-          cmake ..
-          make -j$(nproc)
-          sudo make install
-          cd ../..
-          git clone --depth 1 https://github.com/oatpp/oatpp-json.git
-          cd oatpp-json
-          mkdir build && cd build
-          cmake ..
+          cmake -DCMAKE_BUILD_TYPE=Release ..
           make -j$(nproc)
           sudo make install
 

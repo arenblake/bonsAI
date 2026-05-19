@@ -26,4 +26,4 @@ mkdir -p include/oatpp
 mkdir -p include/oatpp-test
 
 echo "✅ Workspace configured."
-echo "You can now build with: cd LiteRT-LM && bazel build -c opt //bonsai:bonsai"
+echo "You can now build with: cd LiteRT-LM && bazel build -c opt --define=LITERT_LM_FST_CONSTRAINTS_DISABLED=1 //bonsai:bonsai"

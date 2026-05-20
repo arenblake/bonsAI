@@ -125,7 +125,7 @@ nlohmann::json InferenceSession::predict(const std::vector<Message>& messages, c
         }
         if (response) litert_lm_json_response_delete(response);
         response = litert_lm_conversation_send_message(m_conversation, json_message.c_str(), 
-                                                       extra_context.empty() ? nullptr : extra_context.c_str());
+                                                       extra_context.empty() ? nullptr : extra_context.c_str(), nullptr);
     }
     
     m_lastMessageIndex = messages.size();
@@ -179,7 +179,7 @@ void InferenceSession::predictAsync(const std::vector<Message>& messages, TokenC
     for (size_t i = m_lastMessageIndex; i < messages.size() - 1; ++i) {
         std::string json_message = history[i].dump();
         const char* extra = "{\"has_pending_message\": true}";
-        auto* res = litert_lm_conversation_send_message(m_conversation, json_message.c_str(), extra);
+        auto* res = litert_lm_conversation_send_message(m_conversation, json_message.c_str(), extra, nullptr);
         if (res) litert_lm_json_response_delete(res);
     }
 
@@ -195,7 +195,7 @@ void InferenceSession::predictAsync(const std::vector<Message>& messages, TokenC
     auto* data_ptr = data.release();
     
     int status = litert_lm_conversation_send_message_stream(
-        m_conversation, last_json.c_str(), nullptr,
+        m_conversation, last_json.c_str(), nullptr, nullptr,
         [](void* user_data, const char* text, bool is_final, const char* error_message) {
             auto* data = static_cast<AsyncCallbackData*>(user_data);
             

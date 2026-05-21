@@ -29,9 +29,9 @@ jobs:
 
       - name: Install Oat++
         run: |
-          curl -L https://github.com/oatpp/oatpp/archive/refs/tags/1.4.0.tar.gz -o oatpp.tar.gz
-          tar -xzf oatpp.tar.gz
-          cd oatpp-1.4.0
+          # Cloning master since 1.4.0 is not yet a tagged release but used locally
+          git clone --depth 1 https://github.com/oatpp/oatpp.git
+          cd oatpp
           mkdir build && cd build
           cmake -DCMAKE_BUILD_TYPE=Release ..
           make -j$(nproc)
@@ -59,7 +59,7 @@ jobs:
           submodules: recursive
 
       - name: Setup NDK
-        uses: nndixon/setup-ndk@v1
+        uses: nttld/setup-ndk@v1
         with:
           ndk-version: r27d
 
@@ -70,9 +70,8 @@ jobs:
 
       - name: Cross-compile Oat++ for Android
         run: |
-          curl -L https://github.com/oatpp/oatpp/archive/refs/tags/1.4.0.tar.gz -o oatpp.tar.gz
-          tar -xzf oatpp.tar.gz
-          cd oatpp-1.4.0
+          git clone --depth 1 https://github.com/oatpp/oatpp.git
+          cd oatpp
           mkdir build-android && cd build-android
           cmake .. \
             -DCMAKE_TOOLCHAIN_FILE=${ANDROID_NDK_HOME}/build/cmake/android.toolchain.cmake \

@@ -38,7 +38,7 @@ chmod +x configure.sh
 BonsAI is compiled into a single self-contained binary using Bazel.
 ```bash
 cd LiteRT-LM
-bazel build -c opt //bonsai:bonsai
+bazel build -c opt --define=LITERT_LM_FST_CONSTRAINTS_DISABLED=1 //bonsai:bonsai
 cd ..
 sudo cp LiteRT-LM/bazel-bin/bonsai/bonsai .
 ```
@@ -103,6 +103,21 @@ Alternatively, if you have the repository cloned:
 ```
 
 Once installed, you can run `bonsai` from any directory.
+
+### Android Deployment
+
+BonsAI supports running natively on Android devices (e.g. `android_arm64`), both as a standalone executable via Termux or embedded inside an Android APK via JNI.
+
+**Prerequisites:** Ensure `ANDROID_NDK_HOME` is set to your Android NDK installation path (e.g., `/opt/android-ndk-r26b`).
+
+Use the included script to build both artifacts:
+```bash
+./scripts/build_android.sh
+```
+
+**Artifacts generated:**
+- `LiteRT-LM/bazel-bin/bonsai/bonsai`: Standalone statically linked executable (useful for Termux or rooted shells).
+- `LiteRT-LM/bazel-bin/bonsai/libbonsai_jni.so`: JNI shared library (can be included in the `jniLibs/` directory of an Android Studio project).
 
 ## 📋 Roadmap
 

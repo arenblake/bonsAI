@@ -28,7 +28,8 @@ void ServerRunner::destroyEnvironment() {
     oatpp::Environment::destroy();
 }
 
-void ServerRunner::run(const std::string& host, uint16_t port, const std::string& model_path) {
+void ServerRunner::run(const std::string& host, uint16_t port, const std::string& model_path,
+                       const std::string& backend, int max_num_tokens) {
     if (m_isRunning.exchange(true)) {
         std::cerr << "Server is already running." << std::endl;
         return;
@@ -46,8 +47,7 @@ void ServerRunner::run(const std::string& host, uint16_t port, const std::string
 
         // 2. Initialize Model Manager
         auto& manager = ModelManager::getInstance();
-        // Defaulting to enabling vision/audio support if model has them
-        if (!manager.init(model_path, false, false, false)) {
+        if (!manager.init(model_path, backend, max_num_tokens)) {
             throw std::runtime_error("Failed to initialize engine.");
         }
 
@@ -74,11 +74,12 @@ void ServerRunner::run(const std::string& host, uint16_t port, const std::string
     m_isRunning = false;
 }
 
-void ServerRunner::startAsync(const std::string& host, uint16_t port, const std::string& model_path) {
+void ServerRunner::startAsync(const std::string& host, uint16_t port, const std::string& model_path,
+                              const std::string& backend, int max_num_tokens) {
     if (m_isRunning) {
         return;
     }
-    m_serverThread = std::make_unique<std::thread>(&ServerRunner::run, this, host, port, model_path);
+    m_serverThread = std::make_unique<std::thread>(&ServerRunner::run, this, host, port, model_path, backend, max_num_tokens);
 }
 
 void ServerRunner::stop() {

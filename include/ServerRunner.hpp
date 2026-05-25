@@ -25,14 +25,26 @@ public:
     static void destroyEnvironment();
 
     /**
-     * Starts the server on the current thread (blocks).
+     * @brief Starts the server on the current thread (blocks).
+     * @param host Host address to bind to.
+     * @param port Port number to listen on.
+     * @param model_path Path to the .litertlm model file.
+     * @param backend Hardware backend to use (default: "CPU").
+     * @param max_num_tokens Maximum context token size (default: 4096).
      */
-    void run(const std::string& host, uint16_t port, const std::string& model_path);
+    void run(const std::string& host, uint16_t port, const std::string& model_path,
+             const std::string& backend = "CPU", int max_num_tokens = 4096);
 
     /**
-     * Starts the server in a background thread (non-blocking).
+     * @brief Starts the server in a background thread (non-blocking).
+     * @param host Host address to bind to.
+     * @param port Port number to listen on.
+     * @param model_path Path to the .litertlm model file.
+     * @param backend Hardware backend to use (default: "CPU").
+     * @param max_num_tokens Maximum context token size (default: 4096).
      */
-    void startAsync(const std::string& host, uint16_t port, const std::string& model_path);
+    void startAsync(const std::string& host, uint16_t port, const std::string& model_path,
+                    const std::string& backend = "CPU", int max_num_tokens = 4096);
 
     /**
      * Stops the running server.

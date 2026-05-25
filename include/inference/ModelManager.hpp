@@ -19,7 +19,14 @@ class ModelManager {
 public:
     static ModelManager& getInstance();
 
-    bool init(const std::string& modelPath, bool useGpu = false, bool useVisionGpu = false, bool useAudioGpu = false);
+    /**
+     * @brief Initializes the LiteRT-LM Engine with the specified model and configurations.
+     * @param modelPath The file path to the .litertlm model.
+     * @param backend The hardware backend to use ("CPU", "GPU", etc.).
+     * @param maxNumTokens The maximum context window size (default: 4096).
+     * @return True if initialization succeeded, false otherwise.
+     */
+    bool init(const std::string& modelPath, const std::string& backend = "CPU", int maxNumTokens = 4096);
     bool isInitialized() const;
     std::string getModelName() const { return m_modelPath; }
 

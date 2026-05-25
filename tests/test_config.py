@@ -35,3 +35,37 @@ def test_custom_port():
         # 4. Cleanup
         process.terminate()
         process.wait()
+
+def test_backend_and_tokens():
+    """Verify that the server can start with specified backend and max-num-tokens."""
+    custom_port = 9092
+    model_name = "/home/aren/models/gemma-4-E2B-it.litertlm"
+    
+    # 1. Start the server with custom backend and max tokens
+    cmd = [
+        "./bonsai", 
+        model_name, 
+        "--host", "127.0.0.1", 
+        "--port", str(custom_port),
+        "--backend", "CPU",
+        "--max-num-tokens", "2048"
+    ]
+    
+    env = os.environ.copy()
+    process = subprocess.Popen(cmd, env=env)
+    
+    try:
+        # 2. Wait for server to initialize
+        time.sleep(10)
+        
+        # 3. Try to list models to verify it's responsive
+        with httpx.Client(base_url=f"http://127.0.0.1:{custom_port}/v1") as client:
+            response = client.get("/models")
+            assert response.status_code == 200
+            data = response.json()
+            assert "data" in data
+            
+    finally:
+        # 4. Cleanup
+        process.terminate()
+        process.wait()

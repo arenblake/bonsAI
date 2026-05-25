@@ -17,23 +17,27 @@ ModelManager::~ModelManager() {
     }
 }
 
-bool ModelManager::init(const std::string& modelPath, bool useGpu, bool useVisionGpu, bool useAudioGpu) {
+bool ModelManager::init(const std::string& modelPath, const std::string& backend, int maxNumTokens) {
     std::lock_guard<std::mutex> lock(m_mutex);
     
     if (m_initialized) {
         return true;
     }
 
-    std::cout << "[ModelManager] Initializing engine with model: " << modelPath << std::endl;
+    std::cout << "[ModelManager] Initializing engine with model: " << modelPath 
+              << ", backend: " << backend << ", maxNumTokens: " << maxNumTokens << std::endl;
 
-    // Pass "CPU" for backends to ensure they are loaded if present in the model.
     LiteRtLmEngineSettings* settings = litert_lm_engine_settings_create(modelPath.c_str(), 
-                                                                       useGpu ? "GPU" : "CPU", 
-                                                                       useVisionGpu ? "GPU" : "CPU", 
-                                                                       useAudioGpu ? "GPU" : "CPU");
+                                                                       backend.c_str(), 
+                                                                       nullptr, 
+                                                                       nullptr);
     if (!settings) {
         std::cerr << "[ModelManager] Failed to create engine settings." << std::endl;
         return false;
+    }
+
+    if (maxNumTokens > 0) {
+        litert_lm_engine_settings_set_max_num_tokens(settings, maxNumTokens);
     }
 
     m_engine = litert_lm_engine_create(settings);
